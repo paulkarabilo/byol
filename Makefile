@@ -1,7 +1,7 @@
 -CFLAGS=-Wall -g
 
 all: 
-	gcc $(CFLAGS) main.c -o plisp
+	gcc $(CFLAGS) main.c -o build/plisp
 
 clean:
-	rm -rf main
+	rm -rf build/*
