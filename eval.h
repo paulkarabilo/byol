@@ -9,7 +9,9 @@
 #define _PLISP_EVAL_H_
 
 #include "lib/mpc.h"
+#include "lval.h"
 
-int count_nodes(mpc_ast_t *ast);
-long eval(mpc_ast_t *ast);
+lval *lval_eval(lval *val);
+lval *lval_eval_sexpr(lval *val);
+
 #endif /* _PLISP_EVAL_H_ */

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include "lib/mpc.h"
 #include "grammar.h"
+#include "lval.h"
 #include "eval.h"
 
 #ifdef _WIN32
@@ -35,8 +36,9 @@ int main(int argc, char **argv) {
         char *input = readline("plisp> ");
         add_history(input);
         if ((mpc_parse("<stdin>", input, plisp, &r))) {
-            long val = eval(r.output);
-            printf("%li\n", val);
+            lval *val = lval_eval(lval_read(r.output));
+            lval_println(val);
+            lval_del(val);
             mpc_ast_delete(r.output);
         } else {
             mpc_err_print(r.error);

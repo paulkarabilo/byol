@@ -12,5 +12,4 @@
 mpc_parser_t *plisp_set_grammar();
 void plisp_cleanup_grammar();
 
-
 #endif /* _PLISP_GRAMMAR_H_ */

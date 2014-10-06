@@ -8,30 +8,33 @@
 #include "grammar.h"
 #include "lib/mpc.h"
 
-static mpc_parser_t *Decimal;
+static mpc_parser_t *Float;
 static mpc_parser_t *Number;
-static mpc_parser_t *Operator;
+static mpc_parser_t *Symbol;
+static mpc_parser_t *Sexpr;
 static mpc_parser_t *Expr;
 static mpc_parser_t *PLisp;
 
 mpc_parser_t *plisp_set_grammar() {
-    Decimal = mpc_new("decimal");
+    Float = mpc_new("float");
     Number = mpc_new("number");
-    Operator = mpc_new("operator");
+    Symbol = mpc_new("symbol");
+    Sexpr = mpc_new("sexpr");
     Expr = mpc_new("expr");
     PLisp = mpc_new("plisp");
 
     mpca_lang(MPCA_LANG_DEFAULT,
-       "decimal  : /-?[0-9]+\\.[0-9]+/ ;	                               \
+       "float  : /-?[0-9]+\\.[0-9]+/ ;	                           \
         number   : /-?[0-9]+/ ;	                                       \
-        operator : '+'|'-'|'*'|'/'|\"mul\"|\"sub\"|\"sum\"|\"div\" ;   \
-        expr     : <decimal> | <number> | '(' <operator> <expr>+ ')' ; \
-        plisp    : /^/ <operator> <expr>+ /$/ ;                        ",
-    Decimal, Number, Operator, Expr, PLisp);
+        symbol   : '+'|'-'|'*'|'/'|\"mul\"|\"sub\"|\"sum\"|\"div\" ;   \
+        sexpr    : '(' <expr>* ')';                                    \
+        expr     : <float> | <number> | <sexpr> | <symbol>;            \
+        plisp    : /^/ <expr>* /$/ ;                        ",
+    Float, Number, Symbol, Sexpr, Expr, PLisp);
 
     return PLisp;
 }
 
 void plisp_cleanup_grammar() {
-    mpc_cleanup(5, Number, Decimal, Operator, Expr, PLisp);
+    mpc_cleanup(5, Float, Number, Symbol, Sexpr, Expr, PLisp);
 }
