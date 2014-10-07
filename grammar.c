@@ -11,6 +11,7 @@
 static mpc_parser_t *Float;
 static mpc_parser_t *Number;
 static mpc_parser_t *Symbol;
+static mpc_parser_t *Qexpr;
 static mpc_parser_t *Sexpr;
 static mpc_parser_t *Expr;
 static mpc_parser_t *PLisp;
@@ -20,21 +21,23 @@ mpc_parser_t *plisp_set_grammar() {
     Number = mpc_new("number");
     Symbol = mpc_new("symbol");
     Sexpr = mpc_new("sexpr");
+    Qexpr = mpc_new("qexpr");
     Expr = mpc_new("expr");
     PLisp = mpc_new("plisp");
 
     mpca_lang(MPCA_LANG_DEFAULT,
        "float  : /-?[0-9]+\\.[0-9]+/ ;	                           \
         number   : /-?[0-9]+/ ;	                                       \
-        symbol   : '+'|'-'|'*'|'/'|\"mul\"|\"sub\"|\"sum\"|\"div\" ;   \
+        symbol   : '+'|'-'|'*'|'/'|\"list\"|\"head\"|\"tail\"|\"join\"|\"eval\"|\"len\"|\"cons\"|\"init\" ;   \
         sexpr    : '(' <expr>* ')';                                    \
-        expr     : <float> | <number> | <sexpr> | <symbol>;            \
+        qexpr    : '{' <expr>* '}';                                    \
+        expr     : <float> | <number> | <sexpr> | <qexpr> | <symbol>;            \
         plisp    : /^/ <expr>* /$/ ;                        ",
-    Float, Number, Symbol, Sexpr, Expr, PLisp);
+    Float, Number, Symbol, Sexpr, Qexpr, Expr, PLisp);
 
     return PLisp;
 }
 
 void plisp_cleanup_grammar() {
-    mpc_cleanup(5, Float, Number, Symbol, Sexpr, Expr, PLisp);
+    mpc_cleanup(7, Float, Number, Symbol, Sexpr, Qexpr, Expr, PLisp);
 }

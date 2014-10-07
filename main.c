@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <signal.h>
 #include <stdlib.h>
 #include "lib/mpc.h"
 #include "grammar.h"
@@ -26,14 +27,25 @@ void add_history(char *input);
 #include <editline/history.h>
 #endif
 
+static char is_running = 1;
+static char *input;
+
+void sig_handler(int signum) {
+    is_running = 0;
+    free(input);
+    plisp_cleanup_grammar();
+    exit(0);
+}
+
 int main(int argc, char **argv) {
     mpc_parser_t *plisp = plisp_set_grammar();
     puts("PLisp v.0.0.0.1."); //Pablo Lisp lol
     puts("Press Ctrl-C to exit.");
 
-    while (1) {
+    signal(SIGINT, sig_handler);
+    while (is_running) {
         mpc_result_t r;
-        char *input = readline("plisp> ");
+        input = readline("plisp> ");
         add_history(input);
         if ((mpc_parse("<stdin>", input, plisp, &r))) {
             lval *val = lval_eval(lval_read(r.output));
