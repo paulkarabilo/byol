@@ -28,7 +28,7 @@ mpc_parser_t *plisp_set_grammar() {
     mpca_lang(MPCA_LANG_DEFAULT,
        "float  : /-?[0-9]+\\.[0-9]+/ ;	                           \
         number   : /-?[0-9]+/ ;	                                       \
-        symbol   : '+'|'-'|'*'|'/'|\"list\"|\"head\"|\"tail\"|\"join\"|\"eval\"|\"len\"|\"cons\"|\"init\" ;   \
+        symbol   : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+/ ;   \
         sexpr    : '(' <expr>* ')';                                    \
         qexpr    : '{' <expr>* '}';                                    \
         expr     : <float> | <number> | <sexpr> | <qexpr> | <symbol>;            \

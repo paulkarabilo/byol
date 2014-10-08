@@ -5,6 +5,7 @@
 #include "grammar.h"
 #include "lval.h"
 #include "eval.h"
+#include "lenv.h"
 
 #ifdef _WIN32
 
@@ -29,10 +30,11 @@ void add_history(char *input);
 
 static char is_running = 1;
 static char *input;
+lenv *global;
 
 void sig_handler(int signum) {
     is_running = 0;
-    free(input);
+    lenv_del(global);
     plisp_cleanup_grammar();
     exit(0);
 }
@@ -41,14 +43,15 @@ int main(int argc, char **argv) {
     mpc_parser_t *plisp = plisp_set_grammar();
     puts("PLisp v.0.0.0.1."); //Pablo Lisp lol
     puts("Press Ctrl-C to exit.");
-
+    global = new_lenv();
+    lenv_add_builtins(global);
     signal(SIGINT, sig_handler);
     while (is_running) {
         mpc_result_t r;
         input = readline("plisp> ");
         add_history(input);
         if ((mpc_parse("<stdin>", input, plisp, &r))) {
-            lval *val = lval_eval(lval_read(r.output));
+            lval *val = lval_eval(global, lval_read(r.output));
             lval_println(val);
             lval_del(val);
             mpc_ast_delete(r.output);
@@ -59,6 +62,8 @@ int main(int argc, char **argv) {
         free(input);
     }
 
+    is_running = 0;
+    lenv_del(global);
     plisp_cleanup_grammar();
     return 0;
 }
