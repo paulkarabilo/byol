@@ -9,19 +9,6 @@
 #include "eval.h"
 #include "lenv.h"
 
-lval *lval_pop(lval *val, int i) {
-    lval *x = val->cell[i];
-    memmove(&val->cell[i], &val->cell[i+1], sizeof(lval *) * (val->count - i - 1));
-    val->count--;
-    val->cell = realloc(val->cell, sizeof(lval *) * val->count);
-    return x;
-}
-
-lval *lval_take(lval *val, int i) {
-    lval *res = lval_pop(val, i);
-    lval_del(val);
-    return res;
-}
 
 lval *builtin_head(lenv *e, lval *val) {
     LASSERT_FN_NARGS(val, val->count, 1, "head");
@@ -239,6 +226,88 @@ lval *builtin_div(lenv *e, lval *v) {
     return builtin_op(v, "/");
 }
 
+lval *builtin_lambda(lenv *e, lval *v) {
+    LASSERT_FN_NARGS(v, 2, v->count, "\\");
+    LASSERT_FN_TYPE(v, v->cell[0]->type, LVAL_QEXPR, "\\");
+    LASSERT_FN_TYPE(v, v->cell[1]->type, LVAL_QEXPR, "\\");
+
+    int i;
+    lval *c0 = v->cell[0];
+    for (i = 0; i < c0->count; i++) {
+        LASSERT_TYPE(v, c0->cell[i]->type, LVAL_SYM, "Cannot define non-symbol.");
+    }
+
+    lval *args = lval_pop(v, 0);
+    lval *body = lval_pop(v, 0);
+
+    return new_lval_lambda(args, body, "test");
+}
+
+lval *builtin_var(lenv *e, lval *v, char *fn) {
+    LASSERT_FN_TYPE(v, v->cell[0]->type, LVAL_QEXPR, "var");
+
+    lval *syms = v->cell[0];
+    int i;
+    for (i = 0; i < syms->count; i++) {
+        LASSERT_TYPE(v, syms->cell[i]->type, LVAL_SYM,
+                "Function %s cannot define non-symbol", fn);
+    }
+    LASSERT(v, (syms->count == v->count - 1),
+            "Function %s got wrong number of arguments. Expected %i, got %i",
+            fn, syms->count, v->count - 1);
+
+    for (i = 0; i < syms->count; i++) {
+        if (strcmp(fn, "def") == 0) {
+            lenv_def(e, syms->cell[i], v->cell[i + 1]);
+        }
+        if (strcmp(fn, "=") == 0) {
+            lenv_put(e, syms->cell[i], v->cell[i + 1]);
+        }
+    }
+
+    lval_del(v);
+    return new_lval_sexpr();
+}
+
+lval *builtin_def(lenv *e, lval *v) {
+    return builtin_var(e, v, "def");
+}
+
+lval *builtin_put(lenv *e, lval *v) {
+    return builtin_var(e, v, "=");
+}
+
+lval *lval_call(lenv *e, lval *f, lval *v) {
+    if (f->builtin) {
+        return f->builtin(e, v);
+    }
+
+    int given = v->count;
+    int total = f->fnargs->count;
+
+    while (v->count) {
+        LASSERT(v, (f->fnargs->count != 0),
+                "Function passed too many arguments. Got %i, expected %i",
+                given, total);
+
+        lval *sym = lval_pop(f->fnargs, 0);
+        lval *val = lval_pop(v, 0);
+        lenv_put(f->fnenv, sym, val);
+        lval_del(sym);
+        lval_del(val);
+    }
+
+    lval_del(v);
+
+    if (f->fnargs->count == 0) {
+        f->fnenv->parent = e;
+        return builtin_eval(f->fnenv,
+                lval_add(new_lval_sexpr(), lval_copy(f->fnbody)));
+    } else {
+        return lval_copy(f);
+    }
+}
+
 lval *lval_eval_sexpr(lenv *e, lval *val) {
     int i;
     for (i = 0; i < val->count; i++) {
@@ -265,31 +334,9 @@ lval *lval_eval_sexpr(lenv *e, lval *val) {
         return new_lval_err("first element is not a function!");
     }
 
-    lval *result = f->fn(e, val);
+    lval *result = lval_call(e, f, val);
     lval_del(f);
     return result;
-}
-
-lval *builtin_def(lenv *e, lval *val) {
-    LASSERT(val, (val->count >= 2), "Function 'def' needs at least one argument!");
-    LASSERT(val, (val->cell[0]->type == LVAL_QEXPR), "Function 'def' passed incorrect type");
-
-    lval *syms = val->cell[0];
-    int i;
-
-    for (i = 0; i < syms->count; i++) {
-        LASSERT(val, (syms->cell[i]->type == LVAL_SYM), "Function 'def' cannot define non-symbol");
-    }
-
-    LASSERT(val, (syms->count == val->count - 1),
-            "Function 'def' cannot define incorrect number of values to symbols");
-
-    for (i = 0; i < syms->count; i++) {
-        lenv_put(e, syms->cell[i], val->cell[i+1]);
-    }
-
-    lval_del(val);
-    return new_lval_sexpr();
 }
 
 lval *lval_eval(lenv *e, lval *val) {

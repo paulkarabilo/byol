@@ -27,6 +27,8 @@ lval *builtin_init(lenv *e, lval *val);
 lval *builtin_len(lenv *e, lval *val);
 lval *builtin_cons(lenv *e, lval *val);
 lval *builtin_def(lenv *e, lval *val);
+lval *builtin_put(lenv *e, lval *val);
+lval *builtin_lambda(lenv *e, lval *val);
 lval *builtin_dump(lenv *e, lval *val);
 lval *builtin_exit(lenv *e, lval *val);
 
