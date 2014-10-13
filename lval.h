@@ -49,6 +49,7 @@ lval *lval_read(mpc_ast_t *t);
 lval *lval_copy(lval *src);
 void lval_del(lval *val);
 lval *lval_add(lval *v,lval *x);
+int lval_eq(lval *x, lval *y);
 
 void lval_printf(lval *val);
 void lval_print(lval *val);

@@ -158,6 +158,88 @@ lval *builtin_op_float(lval *val, char *op) {
     return x;
 }
 
+lval *builtin_eq(lenv *e, lval *val) {
+    int i;
+    for (i = 0; i < val->count - 1; i++) {
+        if (!lval_eq(val->cell[i], val->cell[i + 1])) {
+            lval_del(val);
+            return new_lval_num(0);
+        }
+    }
+    lval_del(val);
+    return new_lval_num(1);
+}
+
+lval *builtin_neq(lenv *e, lval *val) {
+    int i;
+    for (i = 0; i < val->count - 1; i++) {
+        if (!lval_eq(val->cell[i], val->cell[i + 1])) {
+            lval_del(val);
+            return new_lval_num(1);
+        }
+    }
+    lval_del(val);
+    return new_lval_num(0);
+}
+
+lval *builtin_order(lval *val, char *op) {
+    LASSERT_FN_NARGS(val, 2, val->count, "order");
+    int res;
+    lval *x = val->cell[0];
+    lval *y = val->cell[1];
+    double xd, yd;
+    if (x->type != LVAL_NUM || x->type != LVAL_FLOAT ||
+            y->type != LVAL_NUM || y->type != LVAL_FLOAT) {
+        res = 0;
+    } else {
+        if (x->type == LVAL_NUM) { xd = x->num; }
+        if (x->type == LVAL_FLOAT) { xd = x->fnum; };
+        if (y->type == LVAL_NUM) { yd = y->num; }
+        if (y->type == LVAL_FLOAT) { yd = y->fnum; };
+
+        if (strcmp(op, ">")) { res = xd > yd; }
+        if (strcmp(op, "<")) { res = xd < yd; }
+        if (strcmp(op, ">=")) { res = xd >= yd; }
+        if (strcmp(op, "<=")) { res = xd <= yd; }
+    }
+    lval_del(val);
+    return new_lval_num(res);
+}
+
+lval *builtin_gt(lenv *e, lval *v) {
+    return builtin_order(v, ">");
+}
+
+lval *builtin_lt(lenv *e, lval *v) {
+    return builtin_order(v, "<");
+}
+
+lval *builtin_gte(lenv *e, lval *v) {
+    return builtin_order(v, ">=");
+}
+
+lval *builtin_lte(lenv *e, lval *v) {
+    return builtin_order(v, "<=");
+}
+
+lval *builtin_if(lenv *e, lval *v) {
+    LASSERT_FN_NARGS(v, v->count, 3, "if");
+    LASSERT_FN_TYPE(v, v->cell[0]->type, LVAL_NUM, "if");
+    LASSERT_FN_TYPE(v, v->cell[1]->type, LVAL_QEXPR, "if");
+    LASSERT_FN_TYPE(v, v->cell[2]->type, LVAL_QEXPR, "if");
+
+    lval *x;
+    v->cell[1]->type = LVAL_SEXPR;
+    v->cell[2]->type = LVAL_SEXPR;
+    if (v->cell[0]->num) {
+        x = lval_eval(e, lval_pop(v, 1));
+    } else {
+        x = lval_eval(e, lval_pop(v, 2));
+    }
+    lval_del(v);
+    return x;
+}
+
 lval *builtin_op(lval *val, char *op) {
     int i;
     int is_float = 0;
@@ -240,6 +322,7 @@ lval *builtin_lambda(lenv *e, lval *v) {
     lval *args = lval_pop(v, 0);
     lval *body = lval_pop(v, 0);
 
+    lval_del(v);
     return new_lval_lambda(args, body, "test");
 }
 
@@ -291,6 +374,18 @@ lval *lval_call(lenv *e, lval *f, lval *v) {
                 given, total);
 
         lval *sym = lval_pop(f->fnargs, 0);
+
+        if (strcmp(sym->sym, "&") == 0) {
+            LASSERT(v, (f->fnargs->count == 1),
+                    "Function format (var args) invalid");
+
+            lval *nsym = lval_pop(f->fnargs, 0);
+            lenv_put(f->fnenv, nsym, builtin_list(e, v));
+            lval_del(sym);
+            lval_del(nsym);
+            break;
+        }
+
         lval *val = lval_pop(v, 0);
         lenv_put(f->fnenv, sym, val);
         lval_del(sym);
@@ -298,6 +393,21 @@ lval *lval_call(lenv *e, lval *f, lval *v) {
     }
 
     lval_del(v);
+
+    if (f->fnargs->count > 0 && strcmp(f->fnargs->cell[0]->sym, "&") == 0) {
+        if (f->fnargs->count != 2) {
+            return new_lval_err("Function form (var args) invalid");
+        }
+
+        lval_del(lval_pop(f->fnargs, 0));
+
+        lval *sym = lval_pop(f->fnargs, 0);
+        lval *val = new_lval_qexpr();
+
+        lenv_put(f->fnenv, sym, val);
+        lval_del(sym);
+        lval_del(val);
+    }
 
     if (f->fnargs->count == 0) {
         f->fnenv->parent = e;

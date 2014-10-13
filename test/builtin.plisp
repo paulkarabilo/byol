@@ -17,3 +17,26 @@
 (sub 2 1)
 (mul 1 2 3)
 (div 4 2)
+
+def {fun} (\ {args body} {def (head args) (\ (tail args) body)})
+
+fun {add-together x y} {+ x y}
+
+
+fun {unpack f xs} {eval (cons f xs)}
+fun {pack f & xs} {f xs}
+
+def {curry} unpack
+def {uncurry} pack
+
+curry + {1 2 3}
+uncurry head 1 2 3
+
+(fun {lenl l} {
+    if (== l {})
+        {0}
+        {+ 1 (len (tail l))}
+})
+
+lenl {1 2 3}
+uncurry lenl 1 2 3

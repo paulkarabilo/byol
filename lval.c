@@ -185,6 +185,48 @@ lval *lval_copy(lval *src) {
     return dest;
 }
 
+int lval_eq(lval *x, lval *y) {
+    if (x->type != x->type) {
+        return 0;
+    } else {
+        switch (x->type) {
+            case LVAL_NUM:
+                return x->num == y->num;
+                break;
+            case LVAL_FLOAT:
+                return x->fnum == y->fnum;
+                break;
+            case LVAL_ERR:
+                return strcmp(x->err, y->err) == 0;
+                break;
+            case LVAL_SYM:
+                return strcmp(x->sym, y->sym) == 0;
+                break;
+            case LVAL_FN:
+                if (x->builtin || y->builtin) {
+                    return x->builtin == y->builtin;
+                } else {
+                    return lval_eq(x->fnargs, y->fnargs) &&
+                            lval_eq(x->fnbody, y->fnbody);
+                }
+                break;
+            case LVAL_QEXPR:
+            case LVAL_SEXPR:
+                if (x->count != y->count) {
+                    return 0;
+                }
+                int i;
+                for (i = 0; i < x->count; i++) {
+                    if (!lval_eq(x->cell[i], y->cell[i])) {
+                        return 0;
+                    }
+                }
+                return 1;
+                break;
+        }
+    }
+}
+
 lval *lval_read_num(mpc_ast_t *t) {
     errno = 0;
     long x = strtol(t->contents, NULL, 10);
