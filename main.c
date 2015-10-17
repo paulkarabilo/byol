@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
     mpc_parser_t *plisp = plisp_set_grammar();
     puts("PLisp v.0.0.0.1."); //Pablo Lisp lol
     puts("Press Ctrl-C to exit.");
-    global = new_lenv();
+    global = new_lenv(128);
     lenv_add_builtins(global);
     while ((input = linenoise("mylsp> ")) != NULL) {
         if (input[0] != '\0') {

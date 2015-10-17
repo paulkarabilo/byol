@@ -102,12 +102,18 @@ lval *builtin_init(lenv *e, lval *val) {
 lval *builtin_dump(lenv *e, lval *val) {
     printf("Plisp global mem dump: \n");
     int i;
-    for (i = 0; i < e->count; i++) {
-        printf("<@%p> %s [%i bytes]: ",
-                e->vals[i],
-                e->syms[i],
-                sizeof(e->vals[i]));
-        lval_println(e->vals[i]);
+    lenv_entry *entry = NULL;
+    for (i = 0; i < e->size; i++) {
+    	entry = e->table[i];
+    	while(entry != NULL) {
+			printf("[%i] <@%p> %s [%i bytes]: ",
+					i,
+					entry->val,
+					entry->key,
+					sizeof(entry->val));
+			lval_println(entry->val);
+			entry = entry->next;
+    	}
     }
     lval_del(val);
     return new_lval_sexpr();

@@ -1,37 +1,79 @@
+#include <limits.h>
 #include "lval.h"
 #include "eval.h"
 #include "lenv.h"
 
-lenv *new_lenv() {
+int hash(lenv* e, char* key) {
+	unsigned long int val = 0;
+	int i = 0;
+	while (val < ULONG_MAX && i < strlen(key)) {
+		val = val << 8;
+		val += key[i];
+		i++;
+	}
+	return val % e->size;
+}
+
+lenv *new_lenv(int size) {
+	int i;
     lenv *e = malloc(sizeof(lenv));
+    e->table = malloc(size * sizeof(lenv_entry));
+    for (i = 0; i < size; i++) {
+    	e->table[i] = 0;
+    }
     e->parent = NULL;
-    e->count = 0;
-    e->syms = NULL;
-    e->vals = NULL;
+    e->size = size;
     return e;
+}
+
+lenv_entry* new_entry (char* key, lval* val) {
+	lenv_entry* entry = malloc(sizeof(lenv_entry));
+	entry->key = strdup(key);
+	entry->val = lval_copy(val);
+	entry->next = NULL;
+	return entry;
+}
+
+lenv_entry* lenv_entry_copy(lenv_entry* src) {
+	lenv_entry* dest = new_entry(src->key, src->val);
+	if (src->next) {
+		dest->next = lenv_entry_copy(src->next);
+	}
+	return dest;
+}
+
+void lenv_entry_del (lenv_entry* entry) {
+	if (entry != NULL) {
+		free(entry->key);
+		lval_del(entry->val);
+		lenv_entry* next = entry->next;
+		free(entry);
+		if (next != NULL) {
+			lenv_entry_del(next);
+		}
+	}
 }
 
 void lenv_del(lenv *e) {
     int i;
-    for (i = 0; i < e->count; i++) {
-        free(e->syms[i]);
-        lval_del(e->vals[i]);
+    for (i = 0; i < e->size; i++) {
+    	if (e->table[i] != NULL) {
+    		lenv_entry_del(e->table[i]);
+    	}
     }
-    if (e->syms != NULL) {
-        free(e->syms);
-    }
-    if (e->vals != NULL) {
-        free(e->vals);
+    if (e->table != NULL) {
+        free(e->table);
     }
     free(e);
 }
 
 lval *lenv_get(lenv *e, lval *k) {
-    int i;
-    for (i = 0; i < e->count; i++) {
-        if (strcmp(e->syms[i], k->sym) == 0) {
-            return lval_copy(e->vals[i]);
-        }
+    lenv_entry* entry = e->table[hash(e, k->sym)];
+    while (entry != NULL) {
+    	if (entry->key != NULL && strcmp(k->sym, entry->key) == 0) {
+    		return lval_copy(entry->val);
+    	}
+    	entry = entry->next;
     }
     if (e->parent) {
         return lenv_get(e->parent, k);
@@ -43,14 +85,11 @@ lval *lenv_get(lenv *e, lval *k) {
 lenv *lenv_copy(lenv *e) {
     lenv *n = malloc(sizeof(lenv));
     n->parent = e->parent;
-    n->count = e->count;
-    n->syms = malloc(sizeof(char *) * n->count);
-    n->vals = malloc(sizeof(lval *) * n->count);
+    n->size = e->size;
+    n->table = malloc(sizeof(lenv_entry) * n->size);
     int i;
-    for (i = 0; i < n->count; i++) {
-        n->syms[i] = malloc(strlen(e->syms[i]) + 1);
-        strcpy(n->syms[i], e->syms[i]);
-        n->vals[i] = lval_copy(e->vals[i]);
+    for (i = 0; i < n->size; i++) {
+    	n->table[i] = lenv_entry_copy(e->table[i]);
     }
     return n;
 }
@@ -63,21 +102,29 @@ void lenv_def(lenv *e, lval *k, lval *v) {
 }
 
 void lenv_put_by_key(lenv *e, char *k, lval *v) {
-    int i;
-    for (i = 0; i < e->count; i++) {
-        if (strcmp(e->syms[i], k) == 0) {
-            lval_del(e->vals[i]);
-            e->vals[i] = lval_copy(v);
-            return;
-        }
-    }
-    e->count++;
-    e->vals = realloc(e->vals, sizeof(lval *) * e->count);
-    e->syms = realloc(e->syms, sizeof(lval *) * e->count);
+    int bin = hash(e, k);
+    lenv_entry* next = e->table[bin];
+    short found = 0;
 
-    e->vals[e->count - 1] = lval_copy(v);
-    e->syms[e->count - 1] = malloc(strlen(k) + 1);
-    strcpy(e->syms[e->count - 1], k);
+    while (next != NULL) {
+    	if (next->key != NULL && strcmp(k, next->key) == 0) {
+    		lval_del(next->val);
+    		next->val = lval_copy(v);
+    		found = 1;
+    		break;
+    	}
+    	next = next->next;
+    }
+
+    if (found == 0) {
+    	lenv_entry* entry = new_entry(k, v);
+    	lenv_entry* first = e->table[bin];
+		e->table[bin] = entry;
+		if (first != NULL) {
+			entry->next = first;
+		}
+
+    }
 }
 
 void lenv_put(lenv *e, lval *k, lval *v) {

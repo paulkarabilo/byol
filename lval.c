@@ -63,7 +63,7 @@ lval *new_lval_lambda(lval *args, lval *body, char *name) {
     lval *lfn = malloc(sizeof(lval));
     lfn->type = LVAL_FN;
     lfn->builtin = NULL;
-    lfn->fnenv = new_lenv();
+    lfn->fnenv = new_lenv(128);
     lfn->fnargs = args;
     lfn->fnbody = body;
     lfn->sym = malloc(strlen(name) + 1);
@@ -102,7 +102,7 @@ lval *lval_take(lval *val, int i) {
 }
 
 void lval_del(lval *v) {
-    int i;
+	int i;
     switch (v->type) {
         case LVAL_SYM:
             free(v->sym);
