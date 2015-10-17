@@ -1,12 +1,3 @@
-/*
- * lenv.c
- *
- *  Created on: Oct 8, 2014
- *      Author: paul
- */
-
-
-
 #include "lval.h"
 #include "eval.h"
 #include "lenv.h"
