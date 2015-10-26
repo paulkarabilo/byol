@@ -23,7 +23,6 @@ struct lval {
     lval_type type;
     long num;
     double fnum;
-    char *err;
     char *sym;
     lbuiltin builtin;
     lenv *fnenv;

@@ -13,46 +13,47 @@
 #include <string.h>
 #include <stdarg.h>
 
+lval* new_lval(lval_type type) {
+	lval* v = malloc(sizeof(lval));
+	v->type = type;
+	return v;
+}
+
 lval *new_lval_num(long num) {
-    lval *lnum = malloc(sizeof(lval));
-    lnum->type = LVAL_NUM;
+    lval* lnum = new_lval(LVAL_NUM);
     lnum->num = num;
     return lnum;
 }
 
 lval *new_lval_float(double num) {
-    lval *lnum = malloc(sizeof(lval));
-    lnum->type = LVAL_FLOAT;
+    lval* lnum = new_lval(LVAL_FLOAT);
     lnum->fnum = num;
     return lnum;
 }
 
 lval *new_lval_err(char *fmt, ...) {
-    lval *lerr = malloc(sizeof(lval));
-    lerr->type = LVAL_ERR;
+    lval* lerr = new_lval(LVAL_ERR);
 
     va_list va;
     va_start(va, fmt);
 
 
-    lerr->err = malloc(1024);
-    vsnprintf(lerr->err, 1023, fmt, va);
-    lerr->err = realloc(lerr->err, strlen(lerr->err) + 1);
+    lerr->sym = malloc(1024);
+    vsnprintf(lerr->sym, 1023, fmt, va);
+    lerr->sym = realloc(lerr->sym, strlen(lerr->sym) + 1);
     va_end(va);
     return lerr;
 }
 
 lval *new_lval_sym(char *sym) {
-    lval *lsym = malloc(sizeof(lval));
-    lsym->type = LVAL_SYM;
+    lval *lsym = new_lval(LVAL_SYM);
     lsym->sym = malloc(strlen(sym) + 1);
     strcpy(lsym->sym, sym);
     return lsym;
 }
 
 lval *new_lval_fn(lbuiltin fn, char *name) {
-    lval *lfn = malloc(sizeof(lval));
-    lfn->type = LVAL_FN;
+    lval *lfn = new_lval(LVAL_FN);
     lfn->builtin = fn;
     lfn->sym = malloc(strlen(name) + 1);
     strcpy(lfn->sym, name);
@@ -60,8 +61,7 @@ lval *new_lval_fn(lbuiltin fn, char *name) {
 }
 
 lval *new_lval_lambda(lval *args, lval *body, char *name) {
-    lval *lfn = malloc(sizeof(lval));
-    lfn->type = LVAL_FN;
+    lval *lfn = new_lval(LVAL_FN);
     lfn->builtin = NULL;
     lfn->fnenv = new_lenv(128);
     lfn->fnargs = args;
@@ -72,16 +72,14 @@ lval *new_lval_lambda(lval *args, lval *body, char *name) {
 }
 
 lval *new_lval_qexpr() {
-    lval *lqexpr = malloc(sizeof(lval));
-    lqexpr->type = LVAL_QEXPR;
+    lval *lqexpr = new_lval(LVAL_QEXPR);
     lqexpr->count = 0;
     lqexpr->cell = NULL;
     return lqexpr;
 }
 
 lval *new_lval_sexpr() {
-    lval *lsexpr = malloc(sizeof(lval));
-    lsexpr->type = LVAL_SEXPR;
+    lval *lsexpr = new_lval(LVAL_SEXPR);
     lsexpr->count = 0;
     lsexpr->cell = NULL;
     return lsexpr;
@@ -105,6 +103,7 @@ void lval_del(lval *v) {
 	int i;
     switch (v->type) {
         case LVAL_SYM:
+        case LVAL_ERR:
             free(v->sym);
             break;
         case LVAL_FN:
@@ -114,9 +113,6 @@ void lval_del(lval *v) {
                 lval_del(v->fnargs);
                 lval_del(v->fnbody);
             }
-            break;
-        case LVAL_ERR:
-            free(v->err);
             break;
         case LVAL_QEXPR:
         case LVAL_SEXPR:
@@ -163,9 +159,6 @@ lval *lval_copy(lval *src) {
             break;
 
         case LVAL_ERR:
-            dest->err = malloc(strlen(src->err) + 1);
-            strcpy(dest->err, src->err);
-            break;
         case LVAL_SYM:
             dest->sym = malloc(strlen(src->sym) + 1);
             strcpy(dest->sym, src->sym);
@@ -197,8 +190,6 @@ int lval_eq(lval *x, lval *y) {
                 return x->fnum == y->fnum;
                 break;
             case LVAL_ERR:
-                return strcmp(x->err, y->err) == 0;
-                break;
             case LVAL_SYM:
                 return strcmp(x->sym, y->sym) == 0;
                 break;
@@ -309,7 +300,7 @@ void lval_print(lval *val) {
             printf("%f", val->fnum);
             break;
         case LVAL_ERR:
-            printf("ERROR: %s", val->err);
+            printf("ERROR: %s", val->sym);
             break;
         case LVAL_SYM:
             printf("%s", val->sym);
